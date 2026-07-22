@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Control de Inventario</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="contenedor">
+    <h1>Control de Inventario</h1>
+
+    <form id="form-nuevo" class="form-nuevo">
+      <input type="text" id="codigo" placeholder="Código" required>
+      <input type="text" id="nombre" placeholder="Nombre del producto" required>
+      <input type="number" id="stock" placeholder="Stock inicial" value="0" min="0">
+      <button type="submit">+ Agregar producto</button>
+    </form>
+
+    <input type="text" id="buscar" placeholder="Buscar por nombre o código..." class="buscador">
+
+    <table id="tabla-productos">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Stock</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-productos"></tbody>
+    </table>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
