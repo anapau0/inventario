@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, render_template
-import sqlite3
 import os
 
 app = Flask(__name__)
@@ -12,16 +11,25 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inventario.d
 TURSO_URL = os.environ.get("TURSO_DATABASE_URL")
 TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
-if TURSO_URL:
-    import libsql
+_conn = None
 
-    def get_db():
-        return libsql.connect(database=TURSO_URL, auth_token=TURSO_TOKEN)
-else:
-    import sqlite3
 
-    def get_db():
-        return sqlite3.connect(DB_PATH)
+def get_db():
+    """Reutiliza una única conexión durante toda la vida del proceso.
+    Crear una conexión nueva por cada petición agota memoria/hilos en
+    planes gratuitos (esto causaba los errores 502 y OOM en Render)."""
+    global _conn
+    if _conn is not None:
+        return _conn
+
+    if TURSO_URL:
+        import libsql
+        _conn = libsql.connect(database=TURSO_URL, auth_token=TURSO_TOKEN)
+    else:
+        import sqlite3
+        _conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+
+    return _conn
 
 
 def fila_a_dict(cursor, fila):
@@ -45,7 +53,6 @@ def init_db():
         )
     """)
     conn.commit()
-    conn.close()
 
 
 # ---------- Frontend ----------
@@ -70,7 +77,6 @@ def listar_productos():
     else:
         cur = conn.execute("SELECT * FROM productos ORDER BY id")
     resultado = filas_a_dicts(cur, cur.fetchall())
-    conn.close()
     return jsonify(resultado)
 
 
@@ -94,7 +100,6 @@ def crear_producto():
     conn.commit()
     cur = conn.execute("SELECT * FROM productos WHERE id = ?", (nuevo_id,))
     fila = fila_a_dict(cur, cur.fetchone())
-    conn.close()
     return jsonify(fila), 201
 
 
@@ -106,7 +111,6 @@ def actualizar_producto(producto_id):
     cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
     row = cur.fetchone()
     if row is None:
-        conn.close()
         return jsonify({"error": "Producto no encontrado"}), 404
     actual = fila_a_dict(cur, row)
 
@@ -121,7 +125,6 @@ def actualizar_producto(producto_id):
     conn.commit()
     cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
     fila = fila_a_dict(cur, cur.fetchone())
-    conn.close()
     return jsonify(fila)
 
 
@@ -132,14 +135,12 @@ def incrementar_stock(producto_id):
     cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
     row = cur.fetchone()
     if row is None:
-        conn.close()
         return jsonify({"error": "Producto no encontrado"}), 404
 
     conn.execute("UPDATE productos SET stock = stock + 1 WHERE id = ?", (producto_id,))
     conn.commit()
     cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
     fila = fila_a_dict(cur, cur.fetchone())
-    conn.close()
     return jsonify(fila)
 
 
@@ -150,7 +151,6 @@ def decrementar_stock(producto_id):
     cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
     row = cur.fetchone()
     if row is None:
-        conn.close()
         return jsonify({"error": "Producto no encontrado"}), 404
     actual = fila_a_dict(cur, row)
 
@@ -160,7 +160,6 @@ def decrementar_stock(producto_id):
 
     cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
     fila = fila_a_dict(cur, cur.fetchone())
-    conn.close()
     return jsonify(fila)
 
 
@@ -170,7 +169,6 @@ def eliminar_producto(producto_id):
     conn = get_db()
     conn.execute("DELETE FROM productos WHERE id = ?", (producto_id,))
     conn.commit()
-    conn.close()
     return jsonify({"ok": True})
 
 
