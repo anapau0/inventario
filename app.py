@@ -6,11 +6,32 @@ app = Flask(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inventario.db")
 
+# Si existen estas variables de entorno (configuradas en Render), se conecta
+# a Turso (base de datos persistente en la nube). Si no existen, usa un
+# archivo SQLite local — útil para probar en tu computadora sin necesitar Turso.
+TURSO_URL = os.environ.get("TURSO_DATABASE_URL")
+TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+if TURSO_URL:
+    import libsql
+
+    def get_db():
+        return libsql.connect(database=TURSO_URL, auth_token=TURSO_TOKEN)
+else:
+    import sqlite3
+
+    def get_db():
+        return sqlite3.connect(DB_PATH)
+
+
+def fila_a_dict(cursor, fila):
+    """Convierte una fila (tupla) en diccionario usando los nombres de columna."""
+    columnas = [d[0] for d in cursor.description]
+    return dict(zip(columnas, fila))
+
+
+def filas_a_dicts(cursor, filas):
+    return [fila_a_dict(cursor, f) for f in filas]
 
 
 def init_db():
@@ -42,14 +63,15 @@ def listar_productos():
     conn = get_db()
     if buscar:
         like = f"%{buscar}%"
-        filas = conn.execute(
+        cur = conn.execute(
             "SELECT * FROM productos WHERE nombre LIKE ? OR codigo LIKE ? ORDER BY id",
             (like, like),
-        ).fetchall()
+        )
     else:
-        filas = conn.execute("SELECT * FROM productos ORDER BY id").fetchall()
+        cur = conn.execute("SELECT * FROM productos ORDER BY id")
+    resultado = filas_a_dicts(cur, cur.fetchall())
     conn.close()
-    return jsonify([dict(f) for f in filas])
+    return jsonify(resultado)
 
 
 # Create
@@ -65,14 +87,15 @@ def crear_producto():
 
     conn = get_db()
     cur = conn.execute(
-        "INSERT INTO productos (codigo, nombre, stock) VALUES (?, ?, ?)",
+        "INSERT INTO productos (codigo, nombre, stock) VALUES (?, ?, ?) RETURNING id",
         (codigo, nombre, stock),
     )
+    nuevo_id = cur.fetchone()[0]
     conn.commit()
-    nuevo_id = cur.lastrowid
-    fila = conn.execute("SELECT * FROM productos WHERE id = ?", (nuevo_id,)).fetchone()
+    cur = conn.execute("SELECT * FROM productos WHERE id = ?", (nuevo_id,))
+    fila = fila_a_dict(cur, cur.fetchone())
     conn.close()
-    return jsonify(dict(fila)), 201
+    return jsonify(fila), 201
 
 
 # Update general (editar código/nombre/stock manualmente)
@@ -80,57 +103,65 @@ def crear_producto():
 def actualizar_producto(producto_id):
     data = request.get_json(force=True)
     conn = get_db()
-    fila = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
-    if fila is None:
+    cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
+    row = cur.fetchone()
+    if row is None:
         conn.close()
         return jsonify({"error": "Producto no encontrado"}), 404
+    actual = fila_a_dict(cur, row)
 
-    codigo = data.get("codigo", fila["codigo"])
-    nombre = data.get("nombre", fila["nombre"])
-    stock = data.get("stock", fila["stock"])
+    codigo = data.get("codigo", actual["codigo"])
+    nombre = data.get("nombre", actual["nombre"])
+    stock = data.get("stock", actual["stock"])
 
     conn.execute(
         "UPDATE productos SET codigo = ?, nombre = ?, stock = ? WHERE id = ?",
         (codigo, nombre, stock, producto_id),
     )
     conn.commit()
-    fila = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
+    cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
+    fila = fila_a_dict(cur, cur.fetchone())
     conn.close()
-    return jsonify(dict(fila))
+    return jsonify(fila)
 
 
 # Update rápido: botón "+"
 @app.route("/api/productos/<int:producto_id>/incrementar", methods=["PUT"])
 def incrementar_stock(producto_id):
     conn = get_db()
-    fila = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
-    if fila is None:
+    cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
+    row = cur.fetchone()
+    if row is None:
         conn.close()
         return jsonify({"error": "Producto no encontrado"}), 404
 
     conn.execute("UPDATE productos SET stock = stock + 1 WHERE id = ?", (producto_id,))
     conn.commit()
-    fila = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
+    cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
+    fila = fila_a_dict(cur, cur.fetchone())
     conn.close()
-    return jsonify(dict(fila))
+    return jsonify(fila)
 
 
 # Update rápido: botón "-"
 @app.route("/api/productos/<int:producto_id>/decrementar", methods=["PUT"])
 def decrementar_stock(producto_id):
     conn = get_db()
-    fila = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
-    if fila is None:
+    cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
+    row = cur.fetchone()
+    if row is None:
         conn.close()
         return jsonify({"error": "Producto no encontrado"}), 404
+    actual = fila_a_dict(cur, row)
 
-    if fila["stock"] > 0:
+    if actual["stock"] > 0:
         conn.execute("UPDATE productos SET stock = stock - 1 WHERE id = ?", (producto_id,))
         conn.commit()
 
-    fila = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,)).fetchone()
+    cur = conn.execute("SELECT * FROM productos WHERE id = ?", (producto_id,))
+    fila = fila_a_dict(cur, cur.fetchone())
     conn.close()
-    return jsonify(dict(fila))
+    return jsonify(fila)
 
 
 # Delete

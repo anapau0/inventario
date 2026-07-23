@@ -2,10 +2,10 @@
 
 body {
   font-family: system-ui, Arial, sans-serif;
-  background: #f4f6f8;
+  background: #fdf2f6;
   margin: 0;
   padding: 30px 15px;
-  color: #222;
+  color: #4a2c3a;
 }
 
 .contenedor {
@@ -13,14 +13,15 @@ body {
   margin: 0 auto;
   background: white;
   padding: 25px;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(214, 114, 154, 0.15);
 }
 
 h1 {
   font-size: 22px;
   margin-bottom: 20px;
-  color: #1a3c6e;
+  color: #b5486f;
+  font-weight: 700;
 }
 
 .form-nuevo {
@@ -34,25 +35,44 @@ h1 {
   flex: 1;
   min-width: 100px;
   padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: 1px solid #f3c6d8;
+  border-radius: 8px;
+  background: #fffafc;
+  color: #4a2c3a;
+}
+
+.form-nuevo input:focus {
+  outline: none;
+  border-color: #e296b6;
 }
 
 .form-nuevo button {
-  background: #1a3c6e;
+  background: #d6729a;
   color: white;
   border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: 600;
+}
+
+.form-nuevo button:hover {
+  background: #c25b85;
 }
 
 .buscador {
   width: 100%;
   padding: 8px;
   margin-bottom: 15px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  border: 1px solid #f3c6d8;
+  border-radius: 8px;
+  background: #fffafc;
+  color: #4a2c3a;
+}
+
+.buscador:focus {
+  outline: none;
+  border-color: #e296b6;
 }
 
 table {
@@ -63,14 +83,19 @@ table {
 th, td {
   padding: 10px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #fbe4ec;
 }
 
 th {
-  background: #eef1f5;
+  background: #f8d7e3;
   font-size: 13px;
   text-transform: uppercase;
-  color: #555;
+  color: #a24b6c;
+  letter-spacing: 0.03em;
+}
+
+tr:hover td {
+  background: #fef7fa;
 }
 
 .btn-stock {
@@ -85,18 +110,25 @@ th {
   line-height: 1;
 }
 
-.btn-mas { background: #2e7d32; }
-.btn-menos { background: #c62828; }
+.btn-mas { background: #c25b85; }
+.btn-mas:hover { background: #a8446d; }
+
+.btn-menos { background: #e8a4bf; }
+.btn-menos:hover { background: #dd8aa9; }
 
 .btn-eliminar {
   background: none;
-  border: 1px solid #c62828;
-  color: #c62828;
-  border-radius: 6px;
-  padding: 4px 8px;
+  border: 1px solid #d6729a;
+  color: #b5486f;
+  border-radius: 8px;
+  padding: 4px 10px;
   cursor: pointer;
   font-size: 12px;
   margin-left: 8px;
+}
+
+.btn-eliminar:hover {
+  background: #fdf2f6;
 }
 
 .stock-num {
@@ -104,4 +136,5 @@ th {
   min-width: 24px;
   text-align: center;
   font-weight: bold;
+  color: #4a2c3a;
 }
